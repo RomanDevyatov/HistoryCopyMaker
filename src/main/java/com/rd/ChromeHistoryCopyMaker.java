@@ -33,7 +33,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     private static final String USER_NAME = System.getProperty("user.name");
     private static final String HISTORY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History";
     private static final String HISTORY_COPY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History1";
-    private static final int duration = 1000 * 60 * 2;// * 30; // 30 minutes
+    private static final int duration = 1000 * 60 * 20; // 20 minutes
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public ChromeHistoryCopyMaker(String path) {
