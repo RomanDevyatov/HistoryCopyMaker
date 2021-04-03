@@ -1,7 +1,6 @@
 package com.rd;
 
 import org.sqlite.SQLiteConfig;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,7 +20,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ChromeHistoryCopyMaker extends FileUtility{
+public class ChromeHistoryCopyMaker extends FileUtility {
+
     private Connection connection;
     private Statement statement;
     private ResultSet resultSet;
