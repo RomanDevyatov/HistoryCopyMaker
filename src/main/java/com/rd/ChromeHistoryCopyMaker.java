@@ -39,10 +39,10 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     public ChromeHistoryCopyMaker(String path) {
         log.setLevel(Level.INFO);
         this.generalFolderFullPath = path;
+        createResFile(this.generalFolderFullPath, USER_NAME);
     }
 
     public void startProcess() {
-        createResFile(this.generalFolderFullPath, USER_NAME);
         AtomicLong startTimeMil = getMilTimeFromMorningOfToday();
         Thread run = new Thread(() -> {
             while(true){
@@ -60,7 +60,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                         while (resultSet.next()) {
                             String line = "URL " + resultSet.getString("url") + ", Visited On " +  resultSet.getString("local_last_visit_time") + '\n';
                             log.info(line);
-                            Files.write(Paths.get(this.generalFolderFullPath, fileName), line.getBytes(), new StandardOpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND});
+                            Files.write(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName), line.getBytes(), new StandardOpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND});
                         }
                     } catch (IOException e) {
                         log.severe("Error in writing: " + e.getMessage());

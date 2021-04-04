@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 
 public class FileUtility {
 
-    private static final Logger log = Logger.getLogger(ChromeHistoryCopyMaker.class.getName());
+    private static final Logger log = Logger.getLogger(FileUtility.class.getName());
     protected String fileName;
 
     protected void copyFile(File source, File dest) {
@@ -41,6 +41,10 @@ public class FileUtility {
     }
 
     protected void createResFile(String path, String userName) {
+        path += "/ResultHistory";
+        if (!(new File(path).mkdirs())) {
+            log.severe("Error in file directory creation");
+        }
         this.fileName = userName + "_historyRes_" + LocalDate.now().toString() + ".txt";
         log.info(this.fileName);
         Path filePath = Paths.get(path, this.fileName);
