@@ -39,7 +39,6 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     public ChromeHistoryCopyMaker(String path) {
         log.setLevel(Level.INFO);
         this.generalFolderFullPath = path;
-        createResFile(this.generalFolderFullPath, USER_NAME);
     }
 
     public void startProcess() {
@@ -47,6 +46,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
         Thread run = new Thread(() -> {
             while(true){
                 try {
+                    createResFile(this.generalFolderFullPath, USER_NAME);
                     String dateFromString = format.format(startTimeMil.get());
                     long nowTimeMil = ((new GregorianCalendar()).getTimeInMillis());
                     startTimeMil.set(nowTimeMil);
