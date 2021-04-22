@@ -51,15 +51,12 @@ public class FileUtility {
         if (!Files.exists(filePath)) {
             try {
                 Files.createFile(filePath);
+                log.info("File is created");
             } catch (IOException e) {
                 log.severe("Error in file creation: " + e.getMessage());
             }
         } else {
-            try {
-                new FileOutputStream(String.valueOf(filePath)).close();
-            } catch (IOException e) {
-                log.severe("Error in deleting the contents of a file: " + e.getMessage());
-            }
+            log.info("File " + filePath + " already exists!");
         }
     }
 

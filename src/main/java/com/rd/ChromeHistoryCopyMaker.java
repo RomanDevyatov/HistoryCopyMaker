@@ -1,10 +1,11 @@
 package com.rd;
 
+import org.apache.commons.lang3.StringUtils;
 import org.sqlite.SQLiteConfig;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
@@ -19,6 +20,7 @@ import java.util.GregorianCalendar;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 public class ChromeHistoryCopyMaker extends FileUtility {
 
@@ -33,7 +35,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     private static final String USER_NAME = System.getProperty("user.name");
     private static final String HISTORY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History";
     private static final String HISTORY_COPY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History1";
-    private static final int duration = 1000 * 60 * 20; // 20 minutes
+    private static final int duration = 1000 * 60 * 5; // 5 minutes
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public ChromeHistoryCopyMaker(String path) {
@@ -42,25 +44,36 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     }
 
     public void startProcess() {
-        AtomicLong startTimeMil = getMilTimeFromMorningOfToday();
+        final AtomicLong startTimeMil = getMilTimeFromMorningOfToday();
         Thread run = new Thread(() -> {
-            while(true){
+             while (true) {
                 try {
-                    createResFile(this.generalFolderFullPath, USER_NAME);
+                    ChromeHistoryCopyMaker.this.createResFile(ChromeHistoryCopyMaker.this.generalFolderFullPath, USER_NAME);
                     String dateFromString = format.format(startTimeMil.get());
                     long nowTimeMil = ((new GregorianCalendar()).getTimeInMillis());
                     startTimeMil.set(nowTimeMil);
-                    Path historyPath = Paths.get(HOME_PATH, HISTORY_PATH),
-                            historyCopyPath = Paths.get(HOME_PATH, HISTORY_COPY_PATH);
-                    File historyFile = new File(String.valueOf(historyPath)),
-                            historyFileCopy = new File(String.valueOf(historyCopyPath));
-                    copyFile(historyFile, historyFileCopy);
+                    File historyFile = new File(HOME_PATH + HISTORY_PATH),
+                            historyFileCopy = new File(HOME_PATH + HISTORY_COPY_PATH);
+                    ChromeHistoryCopyMaker.this.copyFile(historyFile, historyFileCopy);
                     try {
-                        resultSet = getQueryResultSetByDateFrom(dateFromString);
+                        resultSet = ChromeHistoryCopyMaker.this.getQueryResultSetByDateFrom(dateFromString);
+                        log.info("Request result from db sqlite is got");
+                        StringBuilder sb = new StringBuilder();
                         while (resultSet.next()) {
-                            String line = "URL " + resultSet.getString("url") + ", Visited On " +  resultSet.getString("local_last_visit_time") + '\n';
-                            log.info(line);
-                            Files.write(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName), line.getBytes(), new StandardOpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND});
+                            String line = "URL " + resultSet.getString("url") + ", Visited On " +  resultSet.getString("local_last_visit_time");
+                            log.info("line from history: " + line);
+                            if (!isDuplicate(line)) {
+                                sb.append(line).append("\n");
+                            } else {
+                                log.info("Duplicate is found: " + line);
+                            }
+                        }
+                        String outputUrls = sb.toString();
+                        if (!StringUtils.isBlank(outputUrls)) {
+                            Files.write(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName), outputUrls.getBytes(), StandardOpenOption.APPEND);
+                            log.info("Writing in file, OK");
+                        } else {
+                            log.info("OutputUrls is blank, OK");
                         }
                     } catch (IOException e) {
                         log.severe("Error in writing: " + e.getMessage());
@@ -74,9 +87,9 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                             statement.close();
                             connection.close();
                             if (!historyFileCopy.delete()) {
-                                log.info("historyFileCopy is not deleted");
+                                log.info("historyFileCopy is not deleted!");
                             }
-                        } catch (SQLException ex) {
+                        } catch (Exception ex) {
                             log.severe("Error in finally block: " + ex.getMessage());
                         }
                     }
@@ -84,10 +97,23 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                     Thread.sleep(duration);
                 } catch (InterruptedException e) {
                     log.severe("Error in thread: " + e.getMessage());
+                } catch (Exception e) {
+                    log.severe("Error: " + e.getMessage());
                 }
             }
+
         });
         run.start();
+    }
+
+    private boolean isDuplicate(String line) {
+        try (Stream<String> stream = Files.lines(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName))) {
+            return stream.parallel()
+                    .anyMatch(str -> StringUtils.contains(str, StringUtils.substringBefore(line, ", Visited On")));
+        } catch (IOException e) {
+            log.severe("Error while reading the file for duplicate search: " + e.getMessage());
+        }
+        return false;
     }
 
     private AtomicLong getMilTimeFromMorningOfToday() {
