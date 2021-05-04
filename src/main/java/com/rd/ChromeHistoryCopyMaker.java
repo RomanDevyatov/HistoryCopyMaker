@@ -37,6 +37,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     private static final String HISTORY_COPY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History1";
     private static final int duration = 1000 * 60 * 5; // 5 minutes
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final String HH_RU_BASE_URL = "https://hh.ru";
 
     public ChromeHistoryCopyMaker(String path) {
         log.setLevel(Level.INFO);
@@ -60,12 +61,16 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                         log.info("Request result from db sqlite is got");
                         StringBuilder sb = new StringBuilder();
                         while (resultSet.next()) {
-                            String line = "URL " + resultSet.getString("url") + ", Visited On " +  resultSet.getString("local_last_visit_time");
+                            String line = resultSet.getString("url") + ", Visited On " +  resultSet.getString("local_last_visit_time");
                             log.info("line from history: " + line);
-                            if (!isDuplicate(line)) {
-                                sb.append(line).append("\n");
+                            if (isHhruUrl(line)) {
+                                if (!isDuplicate(line)) {
+                                    sb.append(line).append("\n");
+                                } else {
+                                    log.info("Duplicate is found: " + line);
+                                }
                             } else {
-                                log.info("Duplicate is found: " + line);
+                                log.info("This url is not hhru: " + line);
                             }
                         }
                         String outputUrls = sb.toString();
@@ -105,6 +110,11 @@ public class ChromeHistoryCopyMaker extends FileUtility {
         });
         run.start();
     }
+
+    private boolean isHhruUrl(String line) {
+        return StringUtils.contains(line, HH_RU_BASE_URL);
+    }
+
 
     private boolean isDuplicate(String line) {
         try (Stream<String> stream = Files.lines(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName))) {
