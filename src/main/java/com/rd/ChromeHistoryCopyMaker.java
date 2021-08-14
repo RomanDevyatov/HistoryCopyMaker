@@ -17,6 +17,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -118,8 +119,10 @@ public class ChromeHistoryCopyMaker extends FileUtility {
 
     private boolean isDuplicate(String line) {
         try (Stream<String> stream = Files.lines(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName))) {
-            return stream.parallel()
-                    .anyMatch(str -> StringUtils.contains(str, StringUtils.substringBefore(line, ", Visited On")));
+            Optional<String> findString = stream
+                    .filter(str -> StringUtils.contains(str, StringUtils.substringBefore(line, ", Visited On")))
+                    .findFirst();
+            return findString.isPresent();
         } catch (IOException e) {
             log.severe("Error while reading the file for duplicate search: " + e.getMessage());
         }
