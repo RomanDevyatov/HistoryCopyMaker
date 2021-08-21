@@ -67,7 +67,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                             if (filterUrl(url)) {
                                 String line = url + ", Visited On " + resultSet.getString("local_last_visit_time");
                                 log.info("line from history: " + line);
-                                if (!sb.toString().contains(url)) {
+                                if (!sb.toString().contains(url + ", Visited On")) {
                                     if (!isDuplicateInResultFile(url)) {
                                         sb.append(line).append("\n");
                                     } else {
