@@ -36,7 +36,7 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     private static final String USER_NAME = System.getProperty("user.name");
     private static final String HISTORY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History";
     private static final String HISTORY_COPY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History1";
-    private static final int duration = 1000 * 60 * 5; // 5 minutes
+    private static final int sleepDuration = 1000 * 60 * 5; // 5 minutes
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private static final String HH_RU_BASE_URL = "https://hh.ru";
 
@@ -50,36 +50,42 @@ public class ChromeHistoryCopyMaker extends FileUtility {
         Thread run = new Thread(() -> {
              while (true) {
                 try {
-                    ChromeHistoryCopyMaker.this.createResFile(ChromeHistoryCopyMaker.this.generalFolderFullPath, USER_NAME);
+                    createResFile(this.generalFolderFullPath, USER_NAME);
                     String dateFromString = format.format(startTimeMil.get());
                     long nowTimeMil = ((new GregorianCalendar()).getTimeInMillis());
                     startTimeMil.set(nowTimeMil);
-                    File historyFile = new File(HOME_PATH + HISTORY_PATH),
-                            historyFileCopy = new File(HOME_PATH + HISTORY_COPY_PATH);
-                    ChromeHistoryCopyMaker.this.copyFile(historyFile, historyFileCopy);
+                    File historyFile = new File(HOME_PATH + HISTORY_PATH);
+                    File historyFileCopy = new File(HOME_PATH + HISTORY_COPY_PATH);
+                    historyFileCopy.createNewFile();
+                    copyFile(historyFile, historyFileCopy);
                     try {
-                        resultSet = ChromeHistoryCopyMaker.this.getQueryResultSetByDateFrom(dateFromString);
+                        resultSet = getQueryResultSetByDateFrom(dateFromString);
                         log.info("Request result from db sqlite is got");
                         StringBuilder sb = new StringBuilder();
                         while (resultSet.next()) {
-                            String line = resultSet.getString("url") + ", Visited On " +  resultSet.getString("local_last_visit_time");
-                            log.info("line from history: " + line);
-                            if (isHhruUrl(line)) {
-                                if (!isDuplicate(line)) {
-                                    sb.append(line).append("\n");
+                            String url = resultSet.getString("url");
+                            if (filterUrl(url)) {
+                                String line = url + ", Visited On " + resultSet.getString("local_last_visit_time");
+                                log.info("line from history: " + line);
+                                if (!sb.toString().contains(url)) {
+                                    if (!isDuplicateInResultFile(url)) {
+                                        sb.append(line).append("\n");
+                                    } else {
+                                        log.info("Duplicate is found in Result File: " + line);
+                                    }
                                 } else {
-                                    log.info("Duplicate is found: " + line);
+                                    log.info("This line is already exists in resultSet, just pass it");
                                 }
                             } else {
-                                log.info("This url is not hhru: " + line);
+                                log.info("This url is incorrect, just pass it");
                             }
                         }
-                        String outputUrls = sb.toString();
-                        if (!StringUtils.isBlank(outputUrls)) {
-                            Files.write(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName), outputUrls.getBytes(), StandardOpenOption.APPEND);
+                        String outputUrlsResult = sb.toString();
+                        if (!StringUtils.isBlank(outputUrlsResult)) {
+                            Files.write(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName), outputUrlsResult.getBytes(), StandardOpenOption.APPEND);
                             log.info("Writing in file, OK");
                         } else {
-                            log.info("OutputUrls is blank, OK");
+                            log.info("outputUrlsResult is blank, OK");
                         }
                     } catch (IOException e) {
                         log.severe("Error in writing: " + e.getMessage());
@@ -93,21 +99,21 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                             statement.close();
                             connection.close();
                             if (!historyFileCopy.delete()) {
-                                log.info("historyFileCopy is not deleted!");
+                                log.info("historyFileCopy is not deleted");
+                            } else {
+                                log.info("historyFileCopy is deleted");
                             }
                         } catch (Exception ex) {
                             log.severe("Error in finally block: " + ex.getMessage());
                         }
                     }
-
-                    Thread.sleep(duration);
+                    Thread.sleep(sleepDuration);
                 } catch (InterruptedException e) {
                     log.severe("Error in thread: " + e.getMessage());
                 } catch (Exception e) {
                     log.severe("Error: " + e.getMessage());
                 }
             }
-
         });
         run.start();
     }
@@ -116,17 +122,28 @@ public class ChromeHistoryCopyMaker extends FileUtility {
         return StringUtils.contains(line, HH_RU_BASE_URL);
     }
 
+    private boolean filterUrl(String urlString) {
+        if (urlString.contains(" ")) {
+            log.info("This url is incorrect: url has one whitespace or more");
+            return false;
+        }
+        if (!isHhruUrl(urlString)) {
+            log.info("This url is not of hhru: " + urlString);
+            return false;
+        }
+        return true;
+    }
 
-    private boolean isDuplicate(String line) {
+    private boolean isDuplicateInResultFile(String url) {
         try (Stream<String> stream = Files.lines(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName))) {
             Optional<String> findString = stream
-                    .filter(str -> StringUtils.contains(str, StringUtils.substringBefore(line, ", Visited On")))
+                    .filter(str -> StringUtils.contains(str, url + ", Visited On"))
                     .findFirst();
             return findString.isPresent();
         } catch (IOException e) {
             log.severe("Error while reading the file for duplicate search: " + e.getMessage());
         }
-        return false;
+        return true;
     }
 
     private AtomicLong getMilTimeFromMorningOfToday() {
@@ -152,4 +169,5 @@ public class ChromeHistoryCopyMaker extends FileUtility {
                 + "FROM urls" + '\n'
                 + "WHERE " + " local_last_visit_time > " + "'" + dateFrom + "'";
     }
+
 }

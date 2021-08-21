@@ -42,11 +42,15 @@ public class FileUtility {
 
     protected void createResFile(String path, String userName) {
         path += "/ResultHistory";
-        if (!(new File(path).mkdirs())) {
-            log.severe("Error in file directory creation");
+        File pathDir = new File(path);
+        if (!pathDir.exists()) {
+            log.info("Directory " + path + " doesn't exist");
+            pathDir.mkdirs();
+        } else {
+            log.info("Directory " + path + " exist, OK");
         }
         this.fileName = userName + "_historyRes_" + LocalDate.now().toString() + ".txt";
-        log.info(this.fileName);
+        log.info("File name: " + this.fileName);
         Path filePath = Paths.get(path, this.fileName);
         if (!Files.exists(filePath)) {
             try {
@@ -56,7 +60,7 @@ public class FileUtility {
                 log.severe("Error in file creation: " + e.getMessage());
             }
         } else {
-            log.info("File " + filePath + " already exists!");
+            log.info("File " + filePath + " already exists");
         }
     }
 
