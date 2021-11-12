@@ -3,7 +3,9 @@ package com.rd;
 import org.apache.commons.lang3.StringUtils;
 import org.sqlite.SQLiteConfig;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -13,6 +15,7 @@ import java.sql.Statement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.DriverManager;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.Calendar;
@@ -36,9 +39,10 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     private static final String USER_NAME = System.getProperty("user.name");
     private static final String HISTORY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History";
     private static final String HISTORY_COPY_PATH = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History1";
-    private static final int sleepDuration = 1000 * 60 * 5; // 5 minutes
+    private static final int sleepDuration = 1000 * 60 * 1; // 1 minute(ms)
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private static final String HH_RU_BASE_URL = "https://hh.ru";
+    private static int tailMs = 1000 * 10; // ten seconds
 
     public ChromeHistoryCopyMaker(String path) {
         log.setLevel(Level.INFO);
@@ -46,76 +50,134 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     }
 
     public void startProcess() {
-        final AtomicLong startTimeMil = getMilTimeFromMorningOfToday();
+//        final AtomicLong startTimeMil = getMilTimeFromMorningOfToday();
         Thread run = new Thread(() -> {
              while (true) {
                 try {
-                    createResFile(this.generalFolderFullPath, USER_NAME);
-                    String dateFromString = format.format(startTimeMil.get());
-                    long nowTimeMil = ((new GregorianCalendar()).getTimeInMillis());
-                    startTimeMil.set(nowTimeMil);
-                    File historyFile = new File(HOME_PATH + HISTORY_PATH);
-                    File historyFileCopy = new File(HOME_PATH + HISTORY_COPY_PATH);
-                    historyFileCopy.createNewFile();
-                    copyFile(historyFile, historyFileCopy);
-                    try {
-                        resultSet = getQueryResultSetByDateFrom(dateFromString);
-                        log.info("Request result from db sqlite is got");
-                        StringBuilder sb = new StringBuilder();
-                        while (resultSet.next()) {
-                            String url = resultSet.getString("url");
-                            if (filterUrl(url)) {
-                                String line = url + ", Visited On " + resultSet.getString("local_last_visit_time");
-                                log.info("line from history: " + line);
-                                if (!sb.toString().contains(url + ", Visited On")) {
-                                    if (!isDuplicateInResultFile(url)) {
-                                        sb.append(line).append("\n");
-                                    } else {
-                                        log.info("Duplicate is found in Result File: " + line);
-                                    }
-                                } else {
-                                    log.info("This line is already exists in resultSet, just pass it");
-                                }
-                            } else {
-                                log.info("This url is incorrect, just pass it");
-                            }
-                        }
-                        String outputUrlsResult = sb.toString();
-                        if (!StringUtils.isBlank(outputUrlsResult)) {
-                            Files.write(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName), outputUrlsResult.getBytes(), StandardOpenOption.APPEND);
-                            log.info("Writing in file, OK");
-                        } else {
-                            log.info("outputUrlsResult is blank, OK");
-                        }
-                    } catch (IOException e) {
-                        log.severe("Error in writing: " + e.getMessage());
-                    } catch (ClassNotFoundException e) {
-                        log.severe("Error setting jdbc driver: " + e.getMessage());
-                    } catch (SQLException e) {
-                        log.severe("Error executing sql: " + e.getMessage());
-                    } finally {
-                        try {
-                            resultSet.close();
-                            statement.close();
-                            connection.close();
-                            if (!historyFileCopy.delete()) {
-                                log.info("historyFileCopy is not deleted");
-                            } else {
-                                log.info("historyFileCopy is deleted");
-                            }
-                        } catch (Exception ex) {
-                            log.severe("Error in finally block: " + ex.getMessage());
-                        }
-                    }
                     Thread.sleep(sleepDuration);
-                } catch (InterruptedException e) {
-                    log.severe("Error in thread: " + e.getMessage());
                 } catch (Exception e) {
-                    log.severe("Error: " + e.getMessage());
+                    log.severe("Error in thread: " + e.getMessage());
+                } finally {
+                    try {
+                        createResFile(this.generalFolderFullPath, USER_NAME);
+                        long timeLast = getLastTimeFromResHist();
+                        if (timeLast == 0) { // if file is empty then take current time
+                            timeLast = ((new GregorianCalendar()).getTimeInMillis()) - sleepDuration - tailMs;
+                        }
+                        String dateStartString = format.format(timeLast);
+//                    String dateFromString = format.format(startTimeMil.get());
+//                    long nowTimeMil = ((new GregorianCalendar()).getTimeInMillis());
+//                    startTimeMil.set(nowTimeMil);
+                        File historyFile = new File(HOME_PATH + HISTORY_PATH);
+                        File historyFileCopy = new File(HOME_PATH + HISTORY_COPY_PATH);
+                        historyFileCopy.createNewFile();
+                        copyFile(historyFile, historyFileCopy);
+                        try {
+                            resultSet = getQueryResultSetByDateFrom(dateStartString);
+                            String outputUrlsResult = getHistRecordsForWriting(resultSet);
+                            String pathToRes = this.generalFolderFullPath + "/ResultHistory/" + fileName;
+                            appendToHistFile(outputUrlsResult, pathToRes);
+                        } catch (SQLException exception) {
+                            log.severe("Error while executing SQL query: " + exception.getMessage());
+                        } catch (ClassNotFoundException e) {
+                            log.severe("Error setting jdbc driver: " + e.getMessage());
+                        } finally {
+                            try {
+                                resultSet.close();
+                                statement.close();
+                                connection.close();
+                                if (!historyFileCopy.delete()) {
+                                    log.info("historyFileCopy is not deleted");
+                                } else {
+                                    log.info("historyFileCopy is deleted");
+                                }
+                            } catch (Exception ex) {
+                                log.severe("Error in finally block: " + ex.getMessage());
+                            }
+                        }
+                    } catch(ParseException e) {
+                        log.severe("Error while parsing date:" + e.getMessage());
+                    } catch(IOException e) {
+                        log.severe("Error while creating historyFileCopy: " + e.getMessage());
+                    }
                 }
             }
         });
         run.start();
+    }
+
+    private long getLastTimeFromResHist() throws ParseException {
+        String lastRecord = getLastRecordOfResHist();
+        if (lastRecord.equals("")) {
+            return Long.parseLong("0");
+        }
+        String dateStr = StringUtils.substringAfterLast(lastRecord, "Visited On ");
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(dateStr).getTime();
+    }
+
+    private String getLastRecordOfResHist() {
+        String lastRecord = "";
+        try {
+            String pathToResHist = this.generalFolderFullPath + "/ResultHistory/" + fileName;
+            BufferedReader br = new BufferedReader(new FileReader(pathToResHist));
+            try {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    lastRecord = line;
+                }
+            } finally {
+                br.close();
+            }
+        } catch (IOException e) {
+            log.severe("Error while finding last record");
+        }
+
+        return lastRecord;
+    }
+
+    private String getHistRecordsForWriting(ResultSet resultSet) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            if (resultSet != null) {
+                while (resultSet.next()) {
+                    String url = resultSet.getString("url");
+                    if (filterUrl(url)) {
+                        String line = url + ", Visited On " + resultSet.getString("local_last_visit_time");
+                        log.info("line from history: " + line);
+                        if (!sb.toString().contains(url + ", Visited On")) {
+                            if (!isDuplicateInResultFile(url)) {
+                                sb.append(line).append("\n");
+                            } else {
+                                log.info("Duplicate is found in Result File: " + line);
+                            }
+                        } else {
+                            log.info("This line is already exists in resultSet, just pass it");
+                        }
+                    } else {
+                        log.info("This url is incorrect, just pass it");
+                    }
+                }
+            } else {
+                log.info("ResultSet is null");
+            }
+        } catch (SQLException e) {
+            log.severe("Error while executing next: " + e.getMessage());
+        }
+
+        return sb.toString();
+    }
+
+    private void appendToHistFile(String output, String path) {
+        try {
+            if (!StringUtils.isBlank(output)) {
+                Files.write(Paths.get(path), output.getBytes(), StandardOpenOption.APPEND);
+                log.info("Writing in file, OK");
+            } else {
+                log.info("outputUrlsResult is blank, OK");
+            }
+        } catch (IOException e) {
+            log.severe("Error in writing: " + e.getMessage());
+        }
     }
 
     private boolean isHhruUrl(String line) {
@@ -135,16 +197,39 @@ public class ChromeHistoryCopyMaker extends FileUtility {
     }
 
     private boolean isDuplicateInResultFile(String url) {
-        try (Stream<String> stream = Files.lines(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName))) {
-            Optional<String> findString = stream
-                    .filter(str -> StringUtils.contains(str, url + ", Visited On"))
-                    .findFirst();
-            return findString.isPresent();
-        } catch (IOException e) {
-            log.severe("Error while reading the file for duplicate search: " + e.getMessage());
+        String pathToResHist = this.generalFolderFullPath + "/ResultHistory/" + fileName;
+        boolean found = false;
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(pathToResHist));
+            try {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (line.contains(url + ", Visited On")) {
+                        found = true;
+                        break;
+                    }
+                }
+            } finally {
+                br.close();
+            }
+        } catch(IOException ioe) {
+            found = true;
+            System.out.println("Error while opening the file: " + pathToResHist);
         }
-        return true;
+        return found;
     }
+//
+//    private boolean isDuplicateInResultFileOld(String url) {
+//        try (Stream<String> stream = Files.lines(Paths.get(this.generalFolderFullPath, "ResultHistory", fileName))) {
+//            Optional<String> findString = stream
+//                    .filter(str -> StringUtils.contains(str, url + ", Visited On"))
+//                    .findFirst();
+//            return findString.isPresent();
+//        } catch (IOException e) {
+//            log.severe("Error while reading the file for duplicate search: " + e.getMessage());
+//        }
+//        return true;
+//    }
 
     private AtomicLong getMilTimeFromMorningOfToday() {
         LocalDate date = LocalDate.now();
