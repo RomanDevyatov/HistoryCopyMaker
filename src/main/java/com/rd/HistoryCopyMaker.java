@@ -243,9 +243,10 @@ public class HistoryCopyMaker extends FileUtility {
 
         switch (this.browserType) {
             case CHROME_BROWSER_TYPE:
-                queryString = "SELECT URL, datetime(last_visit_time / 1000000 + (strftime('%s', '1601-01-01')), 'unixepoch', 'localtime') as local_last_visit_time" + '\n'
+                queryString = "SELECT url, datetime(last_visit_time / 1000000 + (strftime('%s', '1601-01-01')), 'unixepoch', 'localtime') as local_last_visit_time" + '\n'
                         + "FROM urls" + '\n'
-                        + "WHERE " + " local_last_visit_time > " + "'" + dateFrom + "'" + ";";
+                        + "WHERE " + " local_last_visit_time > " + "'" + dateFrom + "'" + '\n'
+                        + "AND url LIKE '%hh.ru%'" +  ";";
                 break;
             case FIREFOX_BROWSER_TYPE:
                 queryString = "SELECT url, datetime(last_visit_date / 1000000, 'unixepoch','localtime') as local_last_visit_time" + '\n'
