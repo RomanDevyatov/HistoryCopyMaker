@@ -74,7 +74,7 @@ start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar <path_to_created_folder> <bro
                     Параметр необязательный, указывать возможно при указании browser_type. Чтобы включить нужно передать "log_on". 
                     Если указать другую строку логинг будет выключен.
 
-5)	Создать ярлык файла `startCopyMaker.bat` (правая кнопка мыши – создать ярлык). B поместить созданный ярлык в папку `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup` (навести курсор, нажать левую кнопку мыши и перенести Автозагрузки):
+4)	Создать ярлык файла `startCopyMaker.bat` (правая кнопка мыши – создать ярлык). B поместить созданный ярлык в папку `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup` (навести курсор, нажать левую кнопку мыши и перенести Автозагрузки):
       
 ![img_7.png](screenshots/img_7.png)
 
