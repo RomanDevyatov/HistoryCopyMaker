@@ -25,19 +25,26 @@ import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 
 public class HistoryCopyMaker extends FileUtility {
 
     private static final Logger logger = Logger.getLogger(HistoryCopyMaker.class.getName());
+
+    private static Handler fileHandler = null;
 
     private Connection connection;
     private Statement statement;
     private ResultSet resultSet;
     private final String generalFolderFullPath;
     private final String browserType;
+    private boolean isLogFile;
     private String dbHistoryPath;
     private String dbHistoryCopyPath;
     // TODO: move following variables into separated class
@@ -55,13 +62,14 @@ public class HistoryCopyMaker extends FileUtility {
     private static final String FIREFOX_DB_COPY_FILE_NAME = "placesCopy.sqlite";
     private static final String FIREFOX_FOLDER_MASK = "*.default-release";
 
-    private static final int sleepDurationMillis = 1000 * 30; // 1 minute (ms)
+    private static final int sleepDurationMillis = 1000 * 20; // 20 seconds (ms)
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 
-    public HistoryCopyMaker(String path, String browserType) {
+    public HistoryCopyMaker(String path, String browserType, boolean isLogFile) {
         this.generalFolderFullPath = path;
         this.browserType = browserType;
+        this.isLogFile = isLogFile;
 
         defineDbPathString(browserType);
     }
@@ -75,6 +83,11 @@ public class HistoryCopyMaker extends FileUtility {
                     logger.severe("Error in thread: " + e.getMessage());
                 } finally {
                     long startTime = System.nanoTime();
+
+                    if (this.isLogFile) {
+                        addFileHandler(this.generalFolderFullPath);
+                    }
+
                     try {
                         createResFile(this.generalFolderFullPath, USER_NAME);
                         String dateStartString = getStartDate();
@@ -123,12 +136,48 @@ public class HistoryCopyMaker extends FileUtility {
 
                     long durationNanoSeconds   = System.nanoTime() - startTime;
                     long durationMilliSeconds = durationNanoSeconds / (long) Math.pow(10, 6);
+
+                    logger.info("Clearing file handlers...");
                     logger.info("Execution time is " + durationMilliSeconds + " ms (1 sec = 1 000 ms)");
+                    clearFileHandlers();
                 }
             }
         });
 
         run.start();
+    }
+
+    private static void addFileHandler(String generalFolderPath) {
+        try {
+            String pathToLogFile = Paths.get(generalFolderPath, "log", USER_NAME + "_copyMaker_" + LocalDate.now() + ".log").normalize().toString();
+
+            File logFile = new File(pathToLogFile);
+            if (!logFile.exists()) {
+                logFile.getParentFile().mkdirs();
+                logFile.createNewFile();
+                logger.info("Log file doesn't exist. New log file is created: " + pathToLogFile);
+            } else {
+                logger.info("Log file already exists: " + pathToLogFile);
+            }
+
+            fileHandler = new FileHandler(pathToLogFile, true);
+
+            SimpleFormatter simple = new SimpleFormatter();
+            fileHandler.setFormatter(simple);
+
+            logger.addHandler(fileHandler);
+        } catch (IOException e) {
+            logger.severe("Error while adding handler: " + e.getMessage());
+        }
+    }
+
+    private static void clearFileHandlers() {
+        if (fileHandler != null) {
+            fileHandler.close();
+        }
+        for (Handler handler : logger.getHandlers()) {
+            logger.removeHandler(handler);
+        }
     }
 
     private String getStartDate() throws ParseException {
