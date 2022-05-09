@@ -15,7 +15,7 @@
 ## Установка JAVA (change runtime environment, on Windows 8 Server for example)
 > Важно! Перед запуском программы необходимо убедиться, что на компьютере установлена JAVA 8 (jre 8). 
 
-###Как загрузить и установить java 8. Смена java runtime environment.
+### Как загрузить и установить java 8. Смена java runtime environment.
 1) Скачать файл установки с официального сайта, версия jre-8u261-windows-i586: https://www.oracle.com/java/technologies/javase/javase8u211-later-archive-downloads.html#license-lightbox 
 2) Нажать правой кнопкой мыши на скачанный файл (Файл находится в папке “Загрузка”), выбрать «Запуск от имени администратора», появится окно установки, нажать на checkbox (соглашение с правилами Java), нажать “Next”. После установки закрыть окно установщика. 
 3) Убедиться, что по пути C:\Program Files\Java появилась папка jre1.8.0_261 
