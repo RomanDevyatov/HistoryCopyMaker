@@ -40,7 +40,7 @@ public class HistoryCopyMaker extends FileUtility {
     private final String browserType;
     private String dbHistoryPath;
     private String dbHistoryCopyPath;
-
+    // TODO: move following variables into separated class
     public static final String CHROME_BROWSER_TYPE = "chrome";
     public static final String FIREFOX_BROWSER_TYPE = "firefox";
 
