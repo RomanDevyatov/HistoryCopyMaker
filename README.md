@@ -78,7 +78,7 @@ start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar C:/Users/Public/createdFolder
                     Параметр необязательный, указывать возможно при указании browser_type. Чтобы включить нужно передать "log_on". 
                     По умолчанию логирование выключено.
                     Если указать другую строку логинг будет выключен.
-    path_to_db_history_overwritten - абсолютный путь до файла истории браузера (для "Mozilla" по умолчанию "C:\Users\<username>\AppData\Roaming\Mozilla\Firefox\Profiles\*.default-esr\places.sqlite". Для Chrome "C:\Users\<username>\AppData\Local\Google\Chrome\User Data\Default\History")
+    path_to_db_history_overwritten - абсолютный путь до файла истории браузера, указывать в двойных ковычках (для "Mozilla" по умолчанию "C:\Users\<username>\AppData\Roaming\Mozilla\Firefox\Profiles\*.default-esr\places.sqlite". Для Chrome "C:\Users\<username>\AppData\Local\Google\Chrome\User Data\Default\History")
 
 5)	Создать ярлык файла `startCopyMaker.bat` (правая кнопка мыши – создать ярлык). Поместить созданный ярлык в папку `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup` (навести курсор, зажать левую кнопку мыши и перенести в "Автозагрузки"):
       
