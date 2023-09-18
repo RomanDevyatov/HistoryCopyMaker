@@ -55,23 +55,24 @@ public class HistoryCopyMaker extends FileUtility {
     public static final String USER_NAME = System.getProperty("user.name");
 
     private static final String CHROME_DB_PATH_POSTFIX = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History";
-    private static final String CHROME_DB_COPY_FILE_NAME = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\HistoryCopy";
-
+    private static final String CHROME_DB_COPY_PATH_POSTFIX = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\HistoryCopy";
+    private static final String CHROME_DB_COPY_FILE_NAME = "HistoryCopy";
     private static final String FIREFOX_PROFILES_PATH_POSTFIX = "\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\";
     private static final String FIREFOX_DB_FILE_NAME = "places.sqlite";
     private static final String FIREFOX_DB_COPY_FILE_NAME = "placesCopy.sqlite";
-    private static final String FIREFOX_FOLDER_MASK = "*.default-release";
+    // TODO: set FIREFOX_FOLDER_MASK as input parameter
+    private static final String FIREFOX_FOLDER_MASK = "*.default-esr";
 
     private static final int sleepDurationMillis = 1000 * 20; // 20 seconds (ms)
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 
-    public HistoryCopyMaker(String path, String browserType, boolean isLogFile) {
+    public HistoryCopyMaker(String path, String browserType, boolean isLogFile, String pathToBrowserHistoryOverWritten) {
         this.generalFolderFullPath = path;
         this.browserType = browserType;
         this.isLogFile = isLogFile;
 
-        defineDbPathString(browserType);
+        defineDbPathString(browserType, pathToBrowserHistoryOverWritten);
     }
 
     public void startProcess() {
@@ -195,11 +196,12 @@ public class HistoryCopyMaker extends FileUtility {
     private void createCopyOfDBHistoryFile() throws IOException {
         File historyFile = new File(this.dbHistoryPath);
         File historyFileCopy = new File(this.dbHistoryCopyPath);
+        String historyFileCopyAbsolutePath = historyFileCopy.getAbsolutePath();
 
         if (historyFileCopy.createNewFile()) {
-            logger.info("Copy of db history file is created: " + historyFileCopy.getAbsolutePath());
+            logger.info("Copy of db history file is created: " + historyFileCopyAbsolutePath);
         } else {
-            logger.info("Copy of db history file is not created: " + historyFileCopy.getAbsolutePath());
+            logger.info("Copy of db history file is not created: " + historyFileCopyAbsolutePath);
         }
 
         copyFile(historyFile, historyFileCopy);
@@ -290,7 +292,7 @@ public class HistoryCopyMaker extends FileUtility {
     private String getSqlRequest(String dateFrom) {
         String queryString = "";
 
-        switch (this.browserType) {
+        switch (browserType) {
             case CHROME_BROWSER_TYPE:
                 queryString = "SELECT url, datetime(last_visit_time / 1000000 + (strftime('%s', '1601-01-01')), 'unixepoch', 'localtime') as local_last_visit_time" + '\n'
                         + "FROM urls" + '\n'
@@ -309,33 +311,60 @@ public class HistoryCopyMaker extends FileUtility {
         return queryString;
     }
 
-    private void defineDbPathString(String browserType) {
+    private void defineDbPathString(String browserType, String pathToBrowserHistoryOverWritten) {
         String dbPathString = "";
         String dbCopyPathString = "";
 
-        if (browserType.equals(FIREFOX_BROWSER_TYPE)) {
-            String fullPathToFirefoxProfilesString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX).normalize().toString();
-            File rootProfilesFirefoxDirectory = new File(fullPathToFirefoxProfilesString);
-            String[] filesNames = rootProfilesFirefoxDirectory.list(new WildcardFileFilter(FIREFOX_FOLDER_MASK));
+        if (StringUtils.isBlank(pathToBrowserHistoryOverWritten)) {
+            logger.info("Taking default value for history path");
+            if (browserType.equals(FIREFOX_BROWSER_TYPE)) {
+                String fullPathToFirefoxProfilesString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX).normalize().toString();
+                File rootProfilesFirefoxDirectory = new File(fullPathToFirefoxProfilesString);
+                String[] filesNames = rootProfilesFirefoxDirectory.list(new WildcardFileFilter(FIREFOX_FOLDER_MASK));
 
-            String firefoxDBFolder;
-            if (filesNames != null && filesNames.length > 0) {
-                logger.info("Firefox folder was found by mask: " + FIREFOX_FOLDER_MASK);
-                firefoxDBFolder = filesNames[0];
-            } else {
-                logger.severe(fullPathToFirefoxProfilesString + " doesn't contain folder by mask");
-                throw new RuntimeException("No firefox folder was found by mask!");
+                String firefoxDBFolder;
+                if (filesNames != null && filesNames.length > 0) {
+                    logger.info("Firefox folder was found by mask: " + FIREFOX_FOLDER_MASK);
+                    firefoxDBFolder = filesNames[0];
+                } else {
+                    logger.severe(fullPathToFirefoxProfilesString + " doesn't contain folder by mask");
+                    throw new RuntimeException("No firefox folder was found by mask!");
+                }
+
+                dbPathString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX, firefoxDBFolder, FIREFOX_DB_FILE_NAME).normalize().toString();
+                dbCopyPathString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX, firefoxDBFolder, FIREFOX_DB_COPY_FILE_NAME).normalize().toString();
+            } else if (this.browserType.equals(CHROME_BROWSER_TYPE)) {
+                dbPathString = Paths.get(HOME_PATH, CHROME_DB_PATH_POSTFIX).normalize().toString();
+                dbCopyPathString = Paths.get(HOME_PATH, CHROME_DB_COPY_PATH_POSTFIX).normalize().toString();
             }
-
-            dbPathString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX, firefoxDBFolder, FIREFOX_DB_FILE_NAME).normalize().toString();
-            dbCopyPathString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX, firefoxDBFolder, FIREFOX_DB_COPY_FILE_NAME).normalize().toString();
-        } else if (this.browserType.equals(CHROME_BROWSER_TYPE)) {
-            dbPathString = Paths.get(HOME_PATH, CHROME_DB_PATH_POSTFIX).normalize().toString();
-            dbCopyPathString = Paths.get(HOME_PATH, CHROME_DB_COPY_FILE_NAME).normalize().toString();
+        } else {
+            logger.info("Taking overwritten value for history path");
+            dbPathString = pathToBrowserHistoryOverWritten;
+            dbCopyPathString = getCopyDbPathString(pathToBrowserHistoryOverWritten);
         }
+        logger.info("Defined paths: dbPathString = " + dbPathString + ", dbCopyPathString = " + dbCopyPathString);
 
         this.dbHistoryPath = dbPathString;
         this.dbHistoryCopyPath = dbCopyPathString;
+    }
+
+    private String getCopyDbPathString(String pathToBrowserHistoryOverWritten) {
+        int lastBackSlasheIndex = StringUtils.lastIndexOf(pathToBrowserHistoryOverWritten, "\\");
+
+        String dbCopyPathString = "";
+        if (lastBackSlasheIndex != -1) {
+            String pathBeforeLastSlash = StringUtils.substring(pathToBrowserHistoryOverWritten, 0, lastBackSlasheIndex + 1);
+
+            if (browserType.equals(FIREFOX_BROWSER_TYPE)) {
+                dbCopyPathString = pathBeforeLastSlash + FIREFOX_DB_COPY_FILE_NAME;
+            } else if (browserType.equals(CHROME_BROWSER_TYPE)) {
+                dbCopyPathString = pathBeforeLastSlash + CHROME_DB_COPY_FILE_NAME;
+            }
+        } else {
+            throw new RuntimeException("pathToBrowserHistoryOverWritten doesn't contain double back slash symbol ('\\')!");
+        }
+
+        return dbCopyPathString;
     }
 
 }
