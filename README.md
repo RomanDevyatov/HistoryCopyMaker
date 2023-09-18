@@ -66,15 +66,21 @@ mklink /D CurrentVersion .\jre1.8.0_261
 2)	В пути C:\Users\Public\testHistory создать папку execCopy – здесь будет храниться программа копирования истории.
 3)	Файл HistoryCopyMaker-1.0-SNAPSHOT.jar поместить в C:\Users\Public\testHistory\execCopy, так же внутри создать `startCopyMaker.bat` файл(для запуска программы), который содержит:
 ```shell
-start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar <path_to_created_folder> <browser_type> <logging_option>
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar <path_to_created_folder> <browser_type> <logging_option> <path_to_db_history_overwritten>
 ```
-    path_to_created_folder - путь до созданной папки C:/Users/Public/<created_folder>
+example:
+```shell
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar C:/Users/Public/createdFolderForProgramm firefox real_any_string "C:\Users\Johny_Dep\AppData\Roaming\Mozilla\Firefox\Profiles\s3q7yazy.default-release\places.sqlite"
+```
+    path_to_created_folder - абсолютный путь до созданной папки C:/Users/Public/<created_folder>
     browser_type - тип браузера "chrome" или "firefox" (по умолчанию, "chrome", если не указывать)
     logging_option - включение логирования в файл C:/Users/Public/<created_folder>/log/<username>_copyMaker.log. 
                     Параметр необязательный, указывать возможно при указании browser_type. Чтобы включить нужно передать "log_on". 
+                    По умолчанию логирование выключено.
                     Если указать другую строку логинг будет выключен.
+    path_to_db_history_overwritten - абсолютный путь до файла истории браузера (для "Mozilla" по умолчанию "C:\Users\<username>\AppData\Roaming\Mozilla\Firefox\Profiles\*.default-esr\places.sqlite". Для Chrome "C:\Users\<username>\AppData\Local\Google\Chrome\User Data\Default\History")
 
-5)	Создать ярлык файла `startCopyMaker.bat` (правая кнопка мыши – создать ярлык). B поместить созданный ярлык в папку `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup` (навести курсор, нажать левую кнопку мыши и перенести Автозагрузки):
+5)	Создать ярлык файла `startCopyMaker.bat` (правая кнопка мыши – создать ярлык). Поместить созданный ярлык в папку `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup` (навести курсор, зажать левую кнопку мыши и перенести в "Автозагрузки"):
       
 ![img_7.png](screenshots/img_7.png)
 
