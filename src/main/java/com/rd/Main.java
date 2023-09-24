@@ -34,6 +34,7 @@ public class Main {
         try {
             if (args.length < 2) {
                 logger.info("Invalid arguments. Please provide working directory path and config path.");
+                pressEnterToContinue();
                 System.exit(-1);
             }
 
@@ -46,10 +47,10 @@ public class Main {
                 ConfigRecord configRecord = config.get(CURRENT_USERNAME);
 
                 String browserType = configRecord.getBrowserType();
-                String pathToDb = configRecord.getPath();
+                String pathOverwritten = configRecord.getPathOverwritten();
                 boolean isLogging = configRecord.isLogging();
 
-                String dbPathString = getDbPathString(browserType, pathToDb);
+                String dbPathString = getDbPathString(browserType, pathOverwritten);
                 String dbCopyPathString = getCopyDbPathString(dbPathString);
 
                 logger.info("Input parameters: \n" +
@@ -71,6 +72,7 @@ public class Main {
                 historyCopyMaker.startProcess();
             } else {
                 logger.info("Username " + CURRENT_USERNAME + " not found in config file. Exited.");
+                pressEnterToContinue();
                 System.exit(0);
             }
 
@@ -78,8 +80,20 @@ public class Main {
         } catch (Exception e) {
             logger.severe("Error: " + e.getMessage());
             e.printStackTrace();
+            pressEnterToContinue();
             System.exit(-1);
         }
+    }
+
+    private static void pressEnterToContinue()
+    {
+        System.out.println("Press Enter key to continue...");
+        try
+        {
+            System.in.read();
+        }
+        catch(Exception e)
+        {}
     }
 
     private static Map<String, ConfigRecord> readConfigFile(String jsonConfigPath) {
@@ -97,10 +111,10 @@ public class Main {
                 }
 
                 String browserTypeConfig = jsonObject.getString("browserType", FIREFOX_BROWSER_TYPE);
-                String pathConfig = jsonObject.getString("path", "");
+                String pathOverwrittenConfig = jsonObject.getString("pathOverwritten", "");
                 boolean loggingConfig = jsonObject.getBoolean("logging", false);
 
-                ConfigRecord configRecord = new ConfigRecord(usernameConfig, browserTypeConfig, pathConfig, loggingConfig);
+                ConfigRecord configRecord = new ConfigRecord(usernameConfig, browserTypeConfig, pathOverwrittenConfig, loggingConfig);
                 configMap.put(usernameConfig, configRecord);
             }
         } catch (IOException e) {
@@ -122,11 +136,11 @@ public class Main {
                 case FIREFOX_BROWSER_TYPE:
                     String fullPathToFirefoxProfilesString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX).normalize().toString();
                     File rootProfilesFirefoxDirectory = new File(fullPathToFirefoxProfilesString);
-                    String[] firefoxFilesNames = rootProfilesFirefoxDirectory.list(new WildcardFileFilter(FIREFOX_FOLDER_MASK_RELEASE));
+                    String[] firefoxFilesNames = rootProfilesFirefoxDirectory.list(new WildcardFileFilter(FIREFOX_FOLDER_MASK_DEFAULT_DASH));
 
                     String firefoxDBFolder;
                     if (firefoxFilesNames != null && firefoxFilesNames.length > 0) {
-                        logger.info("Firefox folder was found by mask " + FIREFOX_FOLDER_MASK_RELEASE);
+                        logger.info("Firefox folder was found by mask " + FIREFOX_FOLDER_MASK_DEFAULT_DASH);
                         firefoxDBFolder = firefoxFilesNames[0];
                     } else {
                         logger.severe(fullPathToFirefoxProfilesString + " doesn't contain folder by mask.");
@@ -143,7 +157,7 @@ public class Main {
             logger.info("Taking overwritten value for history path.");
         }
 
-        logger.info("Defined dbCopyPathString = " + dbPathString);
+        logger.info("Defined dbPathString = " + dbPathString);
 
         return dbPathString;
     }

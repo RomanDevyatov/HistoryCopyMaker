@@ -89,3 +89,6 @@ start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar "C:/Users/Public/createdFolde
 # Вспомогательные ссылки:
 1)	https://stackoverflow.com/questions/3333553/how-can-i-change-the-java-runtime-version-on-windows-7
 2)	https://www.oracle.com/java/technologies/javase/javase8u211-later-archive-downloads.html#license-lightbox
+
+# Important
+I used 1.8 JRE for maven to build JAR artifact
