@@ -3,7 +3,6 @@ package com.rd;
 import com.rd.comparators.RecordComparator;
 import com.rd.models.HistoryRecord;
 import com.rd.utils.FileUtility;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.commons.lang3.StringUtils;
 import org.sqlite.SQLiteConfig;
 
@@ -32,6 +31,8 @@ import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.rd.utils.Constants.*;
+
 
 public class HistoryCopyMaker extends FileUtility {
 
@@ -42,37 +43,29 @@ public class HistoryCopyMaker extends FileUtility {
     private Connection connection;
     private Statement statement;
     private ResultSet resultSet;
-    private final String generalFolderFullPath;
+    private final String workingDirectoryPath;
     private final String browserType;
-    private boolean isLogFile;
-    private String dbHistoryPath;
-    private String dbHistoryCopyPath;
-    // TODO: move following variables into separated class
-    public static final String CHROME_BROWSER_TYPE = "chrome";
-    public static final String FIREFOX_BROWSER_TYPE = "firefox";
+    private final boolean isLogFile;
+    private final String username;
+    private final String dbHistoryPath;
+    private final String dbHistoryCopyPath;
 
-    public static final String HOME_PATH = System.getProperty("user.home");
-    public static final String USER_NAME = System.getProperty("user.name");
-
-    private static final String CHROME_DB_PATH_POSTFIX = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History";
-    private static final String CHROME_DB_COPY_PATH_POSTFIX = "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\HistoryCopy";
-    private static final String CHROME_DB_COPY_FILE_NAME = "HistoryCopy";
-    private static final String FIREFOX_PROFILES_PATH_POSTFIX = "\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\";
-    private static final String FIREFOX_DB_FILE_NAME = "places.sqlite";
-    private static final String FIREFOX_DB_COPY_FILE_NAME = "placesCopy.sqlite";
-    // TODO: set FIREFOX_FOLDER_MASK as input parameter
-    private static final String FIREFOX_FOLDER_MASK = "*.default-esr";
-
-    private static final int sleepDurationMillis = 1000 * 20; // 20 seconds (ms)
+    private static final int sleepDurationMillis = 1000 * 15; // 15 seconds (ms)
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 
-    public HistoryCopyMaker(String path, String browserType, boolean isLogFile, String pathToBrowserHistoryOverWritten) {
-        this.generalFolderFullPath = path;
+    public HistoryCopyMaker(String workingDirectoryPath,
+                            String browserType,
+                            boolean isLogFile,
+                            String username,
+                            String dbPathString,
+                            String dbCopyPathString) {
+        this.workingDirectoryPath = workingDirectoryPath;
         this.browserType = browserType;
         this.isLogFile = isLogFile;
-
-        defineDbPathString(browserType, pathToBrowserHistoryOverWritten);
+        this.username = username;
+        this.dbHistoryPath = dbPathString;
+        this.dbHistoryCopyPath = dbCopyPathString;
     }
 
     public void startProcess() {
@@ -86,48 +79,36 @@ public class HistoryCopyMaker extends FileUtility {
                     long startTime = System.nanoTime();
 
                     if (this.isLogFile) {
-                        addFileHandler(this.generalFolderFullPath);
+                        addFileHandler(this.workingDirectoryPath, this.username);
                     }
 
                     try {
-                        createResFile(this.generalFolderFullPath, USER_NAME);
+                        createResFile(this.workingDirectoryPath, this.username);
                         String dateStartString = getStartDate();
                         logger.info("Start date: " + dateStartString);
-                        createCopyOfDBHistoryFile();
-                        try {
-                            resultSet = getQueryResultSetByDateFrom(dateStartString, this.dbHistoryCopyPath);
+                        createCopyOfDBHistoryFile(this.dbHistoryPath, this.dbHistoryCopyPath);
 
-                            String pathToResultHistoryFile = Paths.get(this.generalFolderFullPath, "ResultHistory", fileName)
+                        try {
+                            resultSet = getQueryResultSetByDateFrom(dateStartString, this.dbHistoryCopyPath, this.browserType);
+
+                            String pathToResultHistoryFile = Paths.get(this.workingDirectoryPath, "ResultHistory", fileName)
                                     .normalize()
                                     .toString();
 
                             Set<HistoryRecord> newHistoryRecordsSet = getNewHistoryRecordsSet(resultSet, pathToResultHistoryFile);
-
                             List<HistoryRecord> newHistoryRecordsSortedList = getSortedList(newHistoryRecordsSet);
 
                             String newRecordsString = newHistoryRecordsSortedList.stream()
                                     .map(HistoryRecord::toString)
                                     .collect(Collectors.joining("\n", "", "\n"));
 
-                            writeToHistFile(newRecordsString, pathToResultHistoryFile);
+                            writeToHistoryFile(newRecordsString, pathToResultHistoryFile);
                         } catch (SQLException exception) {
                             logger.severe("Error while executing SQL query: " + exception.getMessage());
                         } catch (ClassNotFoundException e) {
                             logger.severe("Error setting jdbc driver: " + e.getMessage());
                         } finally {
-                            try {
-                                resultSet.close();
-                                statement.close();
-                                connection.close();
-                                logger.info("Connection to db is closed, OK");
-                                if (!removeFile(this.dbHistoryCopyPath)) {
-                                    logger.info("historyFileCopy is not deleted");
-                                } else {
-                                    logger.info("historyFileCopy is deleted");
-                                }
-                            } catch (Exception ex) {
-                                logger.severe("Error in finally block: " + ex.getMessage());
-                            }
+                            closeDBResources();
                         }
                     } catch(ParseException e) {
                         logger.severe("Error while parsing date:" + e.getMessage());
@@ -148,9 +129,26 @@ public class HistoryCopyMaker extends FileUtility {
         run.start();
     }
 
-    private static void addFileHandler(String generalFolderPath) {
+    private void closeDBResources() {
         try {
-            String pathToLogFile = Paths.get(generalFolderPath, "log", USER_NAME + "_copyMaker_" + LocalDate.now() + ".log").normalize().toString();
+            resultSet.close();
+            statement.close();
+            connection.close();
+            logger.info("Connection to db is closed, OK");
+
+            if (!removeFile(this.dbHistoryCopyPath)) {
+                logger.info("historyFileCopy is not deleted");
+            } else {
+                logger.info("historyFileCopy is deleted");
+            }
+        } catch (Exception e) {
+            logger.severe("Error in finally block: " + e.getMessage());
+        }
+    }
+
+    private void addFileHandler(String generalFolderPath, String username) {
+        try {
+            String pathToLogFile = Paths.get(generalFolderPath, "log", username + "_copyMaker_" + LocalDate.now() + ".log").normalize().toString();
 
             File logFile = new File(pathToLogFile);
             if (!logFile.exists()) {
@@ -169,6 +167,7 @@ public class HistoryCopyMaker extends FileUtility {
             logger.addHandler(fileHandler);
         } catch (IOException e) {
             logger.severe("Error while adding handler: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -193,9 +192,9 @@ public class HistoryCopyMaker extends FileUtility {
         return calendarStart.getTimeInMillis();
     }
 
-    private void createCopyOfDBHistoryFile() throws IOException {
-        File historyFile = new File(this.dbHistoryPath);
-        File historyFileCopy = new File(this.dbHistoryCopyPath);
+    private void createCopyOfDBHistoryFile(String dbPath, String dbCopyPath) throws IOException {
+        File historyFile = new File(dbPath);
+        File historyFileCopy = new File(dbCopyPath);
         String historyFileCopyAbsolutePath = historyFileCopy.getAbsolutePath();
 
         if (historyFileCopy.createNewFile()) {
@@ -213,20 +212,20 @@ public class HistoryCopyMaker extends FileUtility {
                 .collect(Collectors.toList());
     }
 
-    private ResultSet getQueryResultSetByDateFrom(String dateFromString, String dbHistoryPath) throws ClassNotFoundException, SQLException {
+    private ResultSet getQueryResultSetByDateFrom(String dateFromString, String dbHistoryPath, String browserType) throws ClassNotFoundException, SQLException {
         logger.info("Date From: " + dateFromString);
         Class.forName("org.sqlite.JDBC");
 
         SQLiteConfig config = new SQLiteConfig();
         config.setReadOnly(true);
-        String dbPath = "jdbc:sqlite:" + dbHistoryPath;
+        String dbPath = JDBC_SQLITE + dbHistoryPath;
 
         connection = DriverManager.getConnection(dbPath, config.toProperties());
-        logger.info("Connection is established");
+        logger.info("Connection is established, OK");
 
         statement = connection.createStatement();
 
-        String query = getSqlRequest(dateFromString);
+        String query = getSqlRequest(dateFromString, browserType);
 
         return statement.executeQuery(query);
     }
@@ -242,18 +241,12 @@ public class HistoryCopyMaker extends FileUtility {
     }
 
     private Set<HistoryRecord> getHistoryRecordSetFromHistoryFile(String fileName) throws IOException {
-        Set<String> historyFileLinesSet;
+        logger.info("Reading history file, fileName=" + fileName);
         try (Stream<String> lines = Files.lines(Paths.get(fileName))) {
-            historyFileLinesSet = lines.collect(Collectors.toSet());
+            return lines.map(line -> line.split(HistoryRecord.HISTORY_RECORD_DELEMITER, 2))
+                    .map(parts -> new HistoryRecord(parts[0], parts[1]))
+                    .collect(Collectors.toSet());
         }
-
-        Set<HistoryRecord> historyRecordSet = new HashSet<>();
-        for (String s : historyFileLinesSet) {
-            String[] args = s.split(HistoryRecord.HISTORY_RECORD_DELEMITER, 2);
-            historyRecordSet.add(new HistoryRecord(args[0], args[1]));
-        }
-
-        return historyRecordSet;
     }
 
     private Set<HistoryRecord> convertResultToHistoryRecordSet(ResultSet resultSet) throws SQLException {
@@ -269,13 +262,13 @@ public class HistoryCopyMaker extends FileUtility {
             }
             logger.info("Converting result lines to set. DONE");
         } else {
-            logger.info("ResultSet is null");
+            logger.info("ResultSet is null, OK");
         }
 
         return result;
     }
 
-    private void writeToHistFile(String output, String path) {
+    private void writeToHistoryFile(String output, String path) {
         try {
             if (!StringUtils.isBlank(output)) {
                 logger.info("Adding these lines to Result History file (" + path + "): " + "\n" + output);
@@ -289,7 +282,7 @@ public class HistoryCopyMaker extends FileUtility {
         }
     }
 
-    private String getSqlRequest(String dateFrom) {
+    private String getSqlRequest(String dateFrom, String browserType) {
         String queryString = "";
 
         switch (browserType) {
@@ -310,61 +303,4 @@ public class HistoryCopyMaker extends FileUtility {
 
         return queryString;
     }
-
-    private void defineDbPathString(String browserType, String pathToBrowserHistoryOverWritten) {
-        String dbPathString = "";
-        String dbCopyPathString = "";
-
-        if (StringUtils.isBlank(pathToBrowserHistoryOverWritten)) {
-            logger.info("Taking default value for history path");
-            if (browserType.equals(FIREFOX_BROWSER_TYPE)) {
-                String fullPathToFirefoxProfilesString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX).normalize().toString();
-                File rootProfilesFirefoxDirectory = new File(fullPathToFirefoxProfilesString);
-                String[] filesNames = rootProfilesFirefoxDirectory.list(new WildcardFileFilter(FIREFOX_FOLDER_MASK));
-
-                String firefoxDBFolder;
-                if (filesNames != null && filesNames.length > 0) {
-                    logger.info("Firefox folder was found by mask: " + FIREFOX_FOLDER_MASK);
-                    firefoxDBFolder = filesNames[0];
-                } else {
-                    logger.severe(fullPathToFirefoxProfilesString + " doesn't contain folder by mask");
-                    throw new RuntimeException("No firefox folder was found by mask!");
-                }
-
-                dbPathString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX, firefoxDBFolder, FIREFOX_DB_FILE_NAME).normalize().toString();
-                dbCopyPathString = Paths.get(HOME_PATH, FIREFOX_PROFILES_PATH_POSTFIX, firefoxDBFolder, FIREFOX_DB_COPY_FILE_NAME).normalize().toString();
-            } else if (this.browserType.equals(CHROME_BROWSER_TYPE)) {
-                dbPathString = Paths.get(HOME_PATH, CHROME_DB_PATH_POSTFIX).normalize().toString();
-                dbCopyPathString = Paths.get(HOME_PATH, CHROME_DB_COPY_PATH_POSTFIX).normalize().toString();
-            }
-        } else {
-            logger.info("Taking overwritten value for history path");
-            dbPathString = pathToBrowserHistoryOverWritten;
-            dbCopyPathString = getCopyDbPathString(pathToBrowserHistoryOverWritten);
-        }
-        logger.info("Defined paths: dbPathString = " + dbPathString + ", dbCopyPathString = " + dbCopyPathString);
-
-        this.dbHistoryPath = dbPathString;
-        this.dbHistoryCopyPath = dbCopyPathString;
-    }
-
-    private String getCopyDbPathString(String pathToBrowserHistoryOverWritten) {
-        int lastBackSlasheIndex = StringUtils.lastIndexOf(pathToBrowserHistoryOverWritten, "\\");
-
-        String dbCopyPathString = "";
-        if (lastBackSlasheIndex != -1) {
-            String pathBeforeLastSlash = StringUtils.substring(pathToBrowserHistoryOverWritten, 0, lastBackSlasheIndex + 1);
-
-            if (browserType.equals(FIREFOX_BROWSER_TYPE)) {
-                dbCopyPathString = pathBeforeLastSlash + FIREFOX_DB_COPY_FILE_NAME;
-            } else if (browserType.equals(CHROME_BROWSER_TYPE)) {
-                dbCopyPathString = pathBeforeLastSlash + CHROME_DB_COPY_FILE_NAME;
-            }
-        } else {
-            throw new RuntimeException("pathToBrowserHistoryOverWritten doesn't contain double back slash symbol ('\\')!");
-        }
-
-        return dbCopyPathString;
-    }
-
 }
