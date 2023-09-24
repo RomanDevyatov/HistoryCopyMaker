@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 public class ConfigRecord {
     private String username;
     private String browserType;
-    private String path;
+    private String pathOverwritten;
     private boolean logging;
 }

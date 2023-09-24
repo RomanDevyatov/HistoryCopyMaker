@@ -47,10 +47,10 @@ public class Main {
                 ConfigRecord configRecord = config.get(CURRENT_USERNAME);
 
                 String browserType = configRecord.getBrowserType();
-                String pathToDb = configRecord.getPath();
+                String pathOverwritten = configRecord.getPathOverwritten();
                 boolean isLogging = configRecord.isLogging();
 
-                String dbPathString = getDbPathString(browserType, pathToDb);
+                String dbPathString = getDbPathString(browserType, pathOverwritten);
                 String dbCopyPathString = getCopyDbPathString(dbPathString);
 
                 logger.info("Input parameters: \n" +
@@ -111,10 +111,10 @@ public class Main {
                 }
 
                 String browserTypeConfig = jsonObject.getString("browserType", FIREFOX_BROWSER_TYPE);
-                String pathConfig = jsonObject.getString("path", "");
+                String pathOverwrittenConfig = jsonObject.getString("pathOverwritten", "");
                 boolean loggingConfig = jsonObject.getBoolean("logging", false);
 
-                ConfigRecord configRecord = new ConfigRecord(usernameConfig, browserTypeConfig, pathConfig, loggingConfig);
+                ConfigRecord configRecord = new ConfigRecord(usernameConfig, browserTypeConfig, pathOverwrittenConfig, loggingConfig);
                 configMap.put(usernameConfig, configRecord);
             }
         } catch (IOException e) {
