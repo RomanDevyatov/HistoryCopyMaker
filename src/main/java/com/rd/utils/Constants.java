@@ -13,6 +13,7 @@ public class Constants {
     // TODO: set FIREFOX_FOLDER_MASK as input parameter
     public static final String FIREFOX_FOLDER_MASK_ESR = "*.default-esr";
     public static final String FIREFOX_FOLDER_MASK_RELEASE = "*.default-release";
+    public static final String FIREFOX_FOLDER_MASK_DEFAULT_DASH = "*.default-*";
     public static final String COPY = "Copy";
     public static final String JDBC_SQLITE = "jdbc:sqlite:";
 }

@@ -137,9 +137,9 @@ public class HistoryCopyMaker extends FileUtility {
             logger.info("Connection to db is closed, OK");
 
             if (!removeFile(this.dbHistoryCopyPath)) {
-                logger.info("historyFileCopy is not deleted");
+                logger.info("Copy db history was not removed: " + this.dbHistoryCopyPath);
             } else {
-                logger.info("historyFileCopy is deleted");
+                logger.info("Copy db history was removed:" + this.dbHistoryCopyPath);
             }
         } catch (Exception e) {
             logger.severe("Error in finally block: " + e.getMessage());
