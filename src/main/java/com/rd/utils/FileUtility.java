@@ -18,7 +18,6 @@ public class FileUtility {
 
     protected String fileName;
 
-
     protected void copyFile(File source, File dest) throws IOException {
         InputStream is = null;
         OutputStream os = null;

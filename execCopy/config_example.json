@@ -1,0 +1,17 @@
+[
+  {
+    "username": "natalie_portman",
+    "browserType": "chrome",
+    "path": null,
+    "logging": false
+  },
+  {
+    "username": "johny_dep",
+    "browserType": "firefox",
+    "path": "C:\\Users\\Johny_Dep\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\s3q7yazy.default-release\\places.sqlite",
+    "logging": false
+  },
+  {
+    "username": "ivanov_vanya"
+  }
+]
