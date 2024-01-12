@@ -158,8 +158,7 @@ public class Main {
         return isLoggingArg.equals("true");
     }
 
-    private static void pressEnterToContinue()
-    {
+    private static void pressEnterToContinue() {
         System.out.println("Press Enter key to continue...");
         try {
             System.in.read();
