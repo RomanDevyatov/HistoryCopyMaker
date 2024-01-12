@@ -77,9 +77,9 @@ start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar g <path_to_working_directory>
     logging_option - флаг логирования (включается только, если указать true, любая другая строка равняется false, отключение логирования)
 ```
 
-example:
+example (path_to_db_history_overwritten is not specified):
 ```shell 
-start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar g "C:/Users/Public/createdFolderForProgram" firefox true
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar g "C:/Users/Public/createdFolderForProgram" firefox true 
 ```
 
 - 2 тип (настройки с помощью файла конфигурации)
