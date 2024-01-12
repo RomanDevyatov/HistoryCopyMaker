@@ -16,4 +16,6 @@ public class Constants {
     public static final String FIREFOX_FOLDER_MASK_DEFAULT_DASH = "*.default-*";
     public static final String COPY = "Copy";
     public static final String JDBC_SQLITE = "jdbc:sqlite:";
+    public static final String CONFIG_FILE_TYPE = "c";
+    public static final String GENERAL_TYPE = "g";
 }

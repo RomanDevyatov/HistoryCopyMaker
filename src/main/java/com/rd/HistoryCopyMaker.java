@@ -50,7 +50,7 @@ public class HistoryCopyMaker extends FileUtility {
     private final String dbHistoryPath;
     private final String dbHistoryCopyPath;
 
-    private static final int sleepDurationMillis = 1000 * 15; // 15 seconds (ms)
+    private static final int sleepDurationMillis = 1000 * 10; // 10 seconds (ms)
     private static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 

@@ -18,6 +18,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.Locale;
 
 import static com.rd.utils.Constants.*;
 
@@ -32,51 +33,86 @@ public class Main {
         logger.info("PROGRAM PARAMETERS, Args: " + Arrays.asList(args));
 
         try {
-            if (args.length < 2) {
-                logger.info("Invalid arguments. Please provide working directory path and config path.");
-                pressEnterToContinue();
-                System.exit(-1);
+            checkArgsNumber(args, 2, "Invalid arguments. Please provide bash type (" + GENERAL_TYPE + " or " + CONFIG_FILE_TYPE + ") and working directory path.");
+
+            String inputBashType = args[0];
+            String workingDirectoryPath = args[1];
+
+            String dbPathString, dbCopyPathString;
+            boolean isLogging;
+
+            switch (inputBashType) {
+                case GENERAL_TYPE:
+                    checkArgsNumber(args, 3, "Invalid arguments. Type " + GENERAL_TYPE + ". Please provide specific browser type.");
+
+                    String browserTypeArg = args[2];
+                    String browserType = setBrowserType(browserTypeArg);
+
+                    checkArgsNumber(args, 4, "Invalid arguments. Please provide arg for logging.");
+
+                    String isLogArg = args[3];
+                    isLogging = isLogFileEnabled(isLogArg);
+
+                    String pathToBrowserHistoryOverwritten = "";
+                    if (args.length < 5) {
+                        logger.info("No arg for overwritten db path. Empty pathToBrowserHistoryOverwritten by default");
+                    } else {
+                        pathToBrowserHistoryOverwritten = args[4];
+                    }
+
+                    dbPathString = getDbPathString(browserType, pathToBrowserHistoryOverwritten);
+                    dbCopyPathString = getCopyDbPathString(dbPathString);
+
+                    runCopyMaker(
+                            workingDirectoryPath,
+                            browserType,
+                            isLogging,
+                            dbPathString,
+                            dbCopyPathString);
+
+                    logger.info("Program (main function) has been finished");
+                    break;
+                case CONFIG_FILE_TYPE:
+                    checkArgsNumber(args, 3, "Invalid arguments. Please provide config path.");
+
+                    String configPath = args[2];
+                    Map<String, ConfigRecord> config = readConfigFile(configPath);
+
+                    if (config.containsKey(CURRENT_USERNAME)) {
+                        ConfigRecord configRecord = config.get(CURRENT_USERNAME);
+
+                        String browserTypeFromConfig = configRecord.getBrowserType();
+                        String pathOverwritten = configRecord.getPathOverwritten();
+                        isLogging = configRecord.isLogging();
+
+                        dbPathString = getDbPathString(browserTypeFromConfig, pathOverwritten);
+                        dbCopyPathString = getCopyDbPathString(dbPathString);
+
+                        logger.info("Input parameters: \n" +
+                                "currentUsername=" + CURRENT_USERNAME + ",\n" +
+                                "workingDirectoryPath=" + workingDirectoryPath + ",\n" +
+                                "browserType=" + browserTypeFromConfig + ",\n" +
+                                "isLogging=" + isLogging + ",\n" +
+                                "dbPathString=" + dbPathString + ",\n" +
+                                "dbCopyPathString=" + dbCopyPathString);
+
+                        runCopyMaker(
+                                workingDirectoryPath,
+                                browserTypeFromConfig,
+                                isLogging,
+                                dbPathString,
+                                dbCopyPathString);
+                    } else {
+                        logger.info("Username " + CURRENT_USERNAME + " not found in config file. Exited.");
+                        pressEnterToContinue();
+                        System.exit(0);
+                    }
+
+                    logger.info("Program (main function) has finished");
+                    break;
+                default:
+                    logger.info("Exiting. No such Bash type: " + inputBashType);
             }
-
-            String workingDirectoryPath = args[0];
-            String configPath = args[1];
-
-            Map<String, ConfigRecord> config = readConfigFile(configPath);
-
-            if (config.containsKey(CURRENT_USERNAME)) {
-                ConfigRecord configRecord = config.get(CURRENT_USERNAME);
-
-                String browserType = configRecord.getBrowserType();
-                String pathOverwritten = configRecord.getPathOverwritten();
-                boolean isLogging = configRecord.isLogging();
-
-                String dbPathString = getDbPathString(browserType, pathOverwritten);
-                String dbCopyPathString = getCopyDbPathString(dbPathString);
-
-                logger.info("Input parameters: \n" +
-                        "currentUsername=" + CURRENT_USERNAME + ",\n" +
-                        "workingDirectoryPath=" + workingDirectoryPath + ",\n" +
-                        "browserType=" + browserType + ",\n" +
-                        "isLogging=" + isLogging + ",\n" +
-                        "dbPathString=" + dbPathString + ",\n" +
-                        "dbCopyPathString=" + dbCopyPathString);
-
-                HistoryCopyMaker historyCopyMaker = new HistoryCopyMaker(
-                        workingDirectoryPath,
-                        browserType,
-                        isLogging,
-                        CURRENT_USERNAME,
-                        dbPathString,
-                        dbCopyPathString
-                );
-                historyCopyMaker.startProcess();
-            } else {
-                logger.info("Username " + CURRENT_USERNAME + " not found in config file. Exited.");
-                pressEnterToContinue();
-                System.exit(0);
-            }
-
-            logger.info("Program (main function) finished");
         } catch (Exception e) {
             logger.severe("Error: " + e.getMessage());
             e.printStackTrace();
@@ -85,15 +121,48 @@ public class Main {
         }
     }
 
-    private static void pressEnterToContinue()
-    {
-        System.out.println("Press Enter key to continue...");
-        try
-        {
-            System.in.read();
+    private static void checkArgsNumber(String[] args, int amountRequired, String msgIfLess) {
+        if (args.length < amountRequired) {
+            logger.info(msgIfLess);
+            pressEnterToContinue();
+            System.exit(-1);
         }
-        catch(Exception e)
-        {}
+    }
+
+    private static void runCopyMaker(
+            String workingDirectoryPath,
+            String configBrowserType,
+            boolean isLogging,
+            String dbPathString,
+            String dbCopyPathString
+    ) {
+        HistoryCopyMaker historyCopyMaker = new HistoryCopyMaker(
+                workingDirectoryPath,
+                configBrowserType,
+                isLogging,
+                CURRENT_USERNAME,
+                dbPathString,
+                dbCopyPathString
+        );
+        historyCopyMaker.startProcess();
+    }
+
+    private static String setBrowserType(String type) {
+        if (type.toLowerCase(Locale.ROOT).equals(FIREFOX_BROWSER_TYPE)) {
+            return FIREFOX_BROWSER_TYPE;
+        }
+        return CHROME_BROWSER_TYPE;
+    }
+
+    private static boolean isLogFileEnabled(String isLoggingArg) {
+        return isLoggingArg.equals("true");
+    }
+
+    private static void pressEnterToContinue() {
+        System.out.println("Press Enter key to continue...");
+        try {
+            System.in.read();
+        } catch (Exception ignored) {}
     }
 
     private static Map<String, ConfigRecord> readConfigFile(String jsonConfigPath) {
@@ -140,7 +209,7 @@ public class Main {
 
                     String firefoxDBFolder;
                     if (firefoxFilesNames != null && firefoxFilesNames.length > 0) {
-                        logger.info("Firefox folder was found by mask " + FIREFOX_FOLDER_MASK_DEFAULT_DASH);
+                        logger.info("Detected firefox history folder by mask " + FIREFOX_FOLDER_MASK_DEFAULT_DASH);
                         firefoxDBFolder = firefoxFilesNames[0];
                     } else {
                         logger.severe(fullPathToFirefoxProfilesString + " doesn't contain folder by mask.");

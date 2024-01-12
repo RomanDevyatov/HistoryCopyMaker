@@ -62,18 +62,39 @@ mklink /D CurrentVersion .\jre1.8.0_261
 ![img_6.png](screenshots/img_5.png)
 
 ## Как запустить программу
-1)	Создать папку, например, testHistory (или другое название) в C:\Users\Public (общая папка), где хотим разместить программу.
-2)	В пути C:\Users\Public\testHistory создать папку execCopy – здесь будет храниться программа копирования истории.
-3)	Файл HistoryCopyMaker-1.0-SNAPSHOT.jar поместить в C:\Users\Public\testHistory\execCopy, так же внутри создать `startCopyMaker.bat` файл(для запуска программы), который содержит:
+1) Создать папку, например, testHistory (или другое название) в C:\Users\Public (общая папка), где хотим разместить программу.
+2) В пути C:\Users\Public\testHistory создать папку execCopy – здесь будет храниться программа копирования истории.
+3) Файл HistoryCopyMaker-1.0-SNAPSHOT.jar поместить в C:\Users\Public\testHistory\execCopy, так же внутри создать `startCopyMaker.bat` файл(для запуска программы), который содержит:
+
+- 1 тип (общие настройки для всех)
 ```shell
-start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar <path_to_working_directory> <config_path>
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar g <path_to_working_directory> <browser_type> <logging_option> <path_to_db_history_overwritten>
 ```
+```
+    g - означает, что общая загрузка для всех
+    path_to_working_directory - абсолютный путь до созданной папки, например C:/Users/Public/<created_folder>
+    browser_type - тип браузера (firefox или chrome)
+    logging_option - флаг логирования (включается только, если указать true, любая другая строка равняется false, отключение логирования)
+```
+
+example (path_to_db_history_overwritten is not specified):
+```shell 
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar g "C:/Users/Public/createdFolderForProgram" firefox true 
+```
+
+- 2 тип (настройки с помощью файла конфигурации)
+```shell
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar c <path_to_working_directory> <config_path>
+```
+```
+    c - означает, что есть конфигурационный файл
     path_to_working_directory - абсолютный путь до созданной папки, например C:/Users/Public/<created_folder>
     config_path - абсолютный путь до файла конфигурации (главное, чтобы он был виден всем пользователям), например C:\Users\Public\<any_folders>\config.json
+```
 
 example:
 ```shell 
-start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar "C:/Users/Public/createdFolderForProgram" "C:\Users\Public\createdFolderForProgram\config\config_example.json"
+start javaw -jar HistoryCopyMaker-1.0-SNAPSHOT.jar c "C:/Users/Public/createdFolderForProgram" "C:\Users\Public\createdFolderForProgram\config\config_example.json"
 ```
 
 4) Создать файл формата ".json", описание:
